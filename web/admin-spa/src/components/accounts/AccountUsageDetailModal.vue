@@ -38,15 +38,26 @@
               </div>
               <p class="text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
                 近 {{ summary?.days || 30 }} 天内的费用与请求趋势
+                <span v-if="summary?.actualDaysUsed && summary?.actualDaysUsed < summary?.days">
+                  (日均基于实际使用 {{ summary.actualDaysUsed }} 天)
+                </span>
               </p>
             </div>
           </div>
-          <button
-            class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-            @click="handleClose"
-          >
-            <i class="fas fa-times" />
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              class="flex items-center gap-2 rounded-full bg-purple-100 px-3 py-2 text-xs font-semibold text-purple-700 transition hover:bg-purple-200 dark:bg-purple-500/10 dark:text-purple-200 dark:hover:bg-purple-500/20"
+              @click="goTimeline"
+            >
+              <i class="fas fa-clock" /> 请求时间线
+            </button>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+              @click="handleClose"
+            >
+              <i class="fas fa-times" />
+            </button>
+          </div>
         </div>
 
         <!-- 内容区域 -->
@@ -322,9 +333,12 @@
 
 <script setup>
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import Chart from 'chart.js/auto'
 import { useThemeStore } from '@/stores/theme'
+
+import { formatNumber } from '@/utils/tools'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -340,6 +354,7 @@ const emit = defineEmits(['close'])
 
 const themeStore = useThemeStore()
 const { isDarkMode } = storeToRefs(themeStore)
+const router = useRouter()
 
 const chartCanvas = ref(null)
 let chartInstance = null
@@ -349,7 +364,10 @@ const platformLabelMap = {
   'claude-console': 'Claude Console',
   openai: 'OpenAI',
   'openai-responses': 'OpenAI Responses',
-  gemini: 'Gemini'
+  gemini: 'Gemini',
+  'gemini-api': 'Gemini API',
+  droid: 'Droid',
+  bedrock: 'Claude AWS Bedrock'
 }
 
 const platformLabel = computed(() => platformLabelMap[props.account?.platform] || '未知平台')
@@ -373,13 +391,6 @@ const totalTokens = computed(() => props.summary?.totalTokens || 0)
 const overviewInputTokens = computed(() => props.overview?.total?.inputTokens || 0)
 const overviewOutputTokens = computed(() => props.overview?.total?.outputTokens || 0)
 
-const formatNumber = (value) => {
-  const num = Number(value || 0)
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`
-  if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K`
-  return num.toLocaleString()
-}
-
 const formatCost = (value) => {
   const num = Number(value || 0)
   if (Number.isNaN(num)) return '$0.000000'
@@ -395,9 +406,7 @@ const formatDate = (value) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
     const parts = value.split('-')
-    if (parts.length === 3) {
-      return `${parts[1]}-${parts[2]}`
-    }
+    if (parts.length === 3) return `${parts[1]}-${parts[2]}`
     return value
   }
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -443,7 +452,10 @@ const primaryMetrics = computed(() => [
     key: 'avgCost',
     label: '日均费用',
     value: props.summary?.avgDailyCostFormatted || formatCost(props.summary?.avgDailyCost || 0),
-    subtitle: '平均每日成本',
+    subtitle:
+      props.summary?.actualDaysUsed && props.summary?.actualDaysUsed < props.summary?.days
+        ? `基于 ${props.summary.actualDaysUsed} 天实际使用`
+        : '平均每日成本',
     icon: 'fa-wave-square',
     iconClass: 'text-purple-500'
   },
@@ -569,6 +581,14 @@ const cleanupChart = () => {
 const handleClose = () => {
   cleanupChart()
   emit('close')
+}
+
+const goTimeline = () => {
+  if (!props.account?.id) return
+  router.push({
+    path: `/accounts/${props.account.id}/usage-records`,
+    query: { platform: props.account.platform || props.account.accountType }
+  })
 }
 
 watch(

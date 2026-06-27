@@ -26,6 +26,7 @@ redis_data/
 
 # Logs directory
 logs/
+logs1/
 *.log
 startup.log
 app.log
@@ -246,3 +247,5 @@ web/apiStats/
 
 # Admin SPA build files
 web/admin-spa/dist/
+
+.serena/

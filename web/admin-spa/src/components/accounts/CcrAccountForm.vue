@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div v-if="show" class="modal fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div
-        class="modal-content custom-scrollbar mx-auto max-h-[90vh] w-full max-w-2xl overflow-y-auto p-4 sm:p-6 md:p-8"
+        class="modal-content custom-scrollbar mx-auto max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white/90 p-4 shadow-xl backdrop-blur-xl dark:bg-gray-800/95 dark:shadow-2xl sm:p-6 md:p-8"
       >
         <div class="mb-4 flex items-center justify-between sm:mb-6">
           <div class="flex items-center gap-2 sm:gap-3">
@@ -16,7 +16,7 @@
             </h3>
           </div>
           <button
-            class="p-1 text-gray-400 transition-colors hover:text-gray-600"
+            class="p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
             @click="$emit('close')"
           >
             <i class="fas fa-times text-lg sm:text-xl" />
@@ -259,8 +259,8 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { apiClient } from '@/config/api'
-import { showToast } from '@/utils/toast'
+import { updateCcrAccountApi, createCcrAccountApi } from '@/utils/http_apis'
+import { showToast } from '@/utils/tools'
 import ProxyConfig from '@/components/accounts/ProxyConfig.vue'
 
 const props = defineProps({
@@ -344,7 +344,7 @@ const submit = async () => {
       if (form.value.apiKey && form.value.apiKey.trim().length > 0) {
         updates.apiKey = form.value.apiKey
       }
-      const res = await apiClient.put(`/admin/ccr-accounts/${props.account.id}`, updates)
+      const res = await updateCcrAccountApi(props.account.id, updates)
       if (res.success) {
         // 不在这里显示 toast，由父组件统一处理
         emit('success')
@@ -367,7 +367,7 @@ const submit = async () => {
         dailyQuota: Number(form.value.dailyQuota || 0),
         quotaResetTime: form.value.quotaResetTime || '00:00'
       }
-      const res = await apiClient.post('/admin/ccr-accounts', payload)
+      const res = await createCcrAccountApi(payload)
       if (res.success) {
         // 不在这里显示 toast，由父组件统一处理
         emit('success')
@@ -419,18 +419,6 @@ watch(
 </script>
 
 <style scoped>
-.modal-content {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-:global(.dark) .modal-content {
-  background: rgba(17, 24, 39, 0.85);
-}
-
 .loading-spinner {
   width: 20px;
   height: 20px;
